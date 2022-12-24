@@ -1,4 +1,7 @@
-# matrix - a project which implements matrix class, basic operations with matrices and Bareiss determinant computing algorithm 
+# matrix - a project which implements matrix class and basic operations with matrices
+
+### Bareiss algorithm
+Link to the determinant computing algorithm -> 
 
 ### Installing and running
 

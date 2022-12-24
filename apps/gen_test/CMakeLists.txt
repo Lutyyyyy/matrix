@@ -1,0 +1,1 @@
+add_executable (gen_test gen_test.cpp)

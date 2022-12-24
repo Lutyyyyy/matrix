@@ -1,0 +1,1 @@
+add_executable (determinant_computing_algorithm_test determinant_computing_algorithm_test.cpp) 

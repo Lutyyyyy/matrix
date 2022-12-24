@@ -3,7 +3,7 @@
 
 
 
-int main () {
+int main () try {
 
     auto data = input_data::get_data<double>();
 
@@ -13,5 +13,8 @@ int main () {
     
     std::cout << res << std::endl;
 
-    return 0;
+    return EXIT_SUCCESS;
+} catch (const std::exception &e) {
+    std::cerr << e.what() << std::endl;
+    return EXIT_FAILURE;
 }

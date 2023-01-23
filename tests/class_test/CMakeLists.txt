@@ -1,6 +1,6 @@
 set(
     TESTS
-    Buffer_t_test
+    Matrix_buffer_t_test
     Matrix_t_test
 )
 

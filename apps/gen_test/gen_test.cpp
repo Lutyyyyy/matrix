@@ -14,12 +14,10 @@ int main () {
         std::vector<double> vec (size * size, 0);
         for (size_t j = 0; j < size; j++) {
             for (size_t k = 0; k < size; k++) {
-                if (j == k && j == 0) {
-                    vec[size * j + k] = 42;
-                } else if (j == k) {
+                if (k == 0 && j == 0) {
+                    vec[0] = 42;
+                } else if (j <= k) {
                     vec[size * j + k] = 1;
-                } else if (j < k) {
-                    vec[size * j + k] = static_cast<double> (rand() % 100);
                 } else {
                     vec[size * j + k] = 0;
                 }
@@ -43,7 +41,7 @@ int main () {
             mtx.subtract_rows( rand() % 100, rand() % 100);
         }
 
-        double res = mtx_copy.determinant();
+        double res = mtx.determinant();
 
         if ( !Matrices::equal_eps(res, 42.0) ) {
             std::cout << "TEST #" << i << " FAILED\t\tOUTPUT: " << res << std::endl;
@@ -52,7 +50,7 @@ int main () {
             mixed_buffer_file << "TEST #" << i << " FAILED\nINPUT: " << std::endl << std::endl;
             for (size_t j = 0; j < size; j++) {
                 for (size_t k = 0; k < size; k++) {
-                    mixed_buffer_file << mtx_copy[j][k] << " ";
+                    mixed_buffer_file << vec[j*size+k] << " ";
                 }
             mixed_buffer_file << std::endl;
             }

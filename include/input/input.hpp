@@ -13,12 +13,17 @@ void handle_input_error() {
     std::cout << "Incorrect input" << std::endl;
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    
+    if ((std::cin >> std::ws).eof()) {
+        throw std::runtime_error("Input: EOF reached");
+    }
 }
 
 template<typename T> 
 T get_val() {
     
     T value;
+
     std::cin >> value;
 
     if (std::cin.eof()) {
@@ -36,7 +41,11 @@ T get_val() {
 template<typename T> 
 std::pair<size_t, std::vector<T>> get_data() {
 
-    int sz = get_val<int> ();
+    if ((std::cin >> std::ws).eof()) {
+        throw std::runtime_error("empty file");
+    }
+
+    size_t sz = get_val<size_t> ();
     
     while (sz <= 0) {
         std::cout << "size must be > 0" << std::endl;
@@ -44,14 +53,13 @@ std::pair<size_t, std::vector<T>> get_data() {
         std::cin >> sz;
     }
 
-    
     std::vector<T> data (sz * sz);
 
     for (auto& i : data) {
         i = get_val<T>();
     }
 
-    return {static_cast<size_t> (sz), data};
+    return {sz, data};
 }
 
 } // input_data

@@ -1,1 +1,0 @@
-add_executable (Buffer_t_test Buffer_t_test.cpp)

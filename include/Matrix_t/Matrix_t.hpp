@@ -14,6 +14,7 @@ bool equal_eps (double a, double b) { return (std::fabs(a - b) < EPS); }
 
 
 template <typename T> void construct (T *p, const T &rhs) { new (p) T(rhs); }
+template <typename T> void construct (T *p, T &&rhs) { new (p) T(std::move(rhs)); }
 
 template <class T> void destroy(T *p) { p->~T(); }
 
@@ -25,12 +26,12 @@ template <typename Iter> void destroy(Iter first, Iter last) {
 
 template <typename T> struct Buffer_t {
 
-protected:    
+private:    
     T* buffer_;
     size_t buffer_size_ = 0;
     size_t used_ = 0;
 
-protected:    
+public:    
     Buffer_t (size_t sz);
     
     Buffer_t (const Buffer_t &) = delete;
@@ -41,66 +42,43 @@ protected:
     
     ~Buffer_t();
 
-}; //Buffer_t
-
-
-template <typename T> struct Matrix_buffer_t final : private Buffer_t<T> {
-private:
-    using Buffer_t<T>::buffer_;
-    using Buffer_t<T>::buffer_size_;
-    using Buffer_t<T>::used_;
-    
-    size_t rows_ = 0;
-    size_t columns_ = 0;
-public:
-    Matrix_buffer_t(size_t r, size_t c);
-    Matrix_buffer_t(size_t r, size_t c, const std::vector<T> &input);
-    
-    Matrix_buffer_t(const Matrix_buffer_t<T> &rhs);
-    Matrix_buffer_t &operator= (const Matrix_buffer_t &rhs);
-
-    Matrix_buffer_t (Matrix_buffer_t &&rhs) = default;
-    Matrix_buffer_t& operator= (Matrix_buffer_t &&rhs) = default;
-
     void push(const T &t);
     void push(T &&t);
 
-    T& operator[] (size_t index) const; 
-
-    size_t rows() const        { return rows_; }
-    size_t columns() const     { return columns_; }
-    size_t buffer_size() const { return buffer_size_; }
-    size_t used() const        { return used_; }
+    size_t size() const { return buffer_size_; }
+    size_t used() const { return used_; }
 
     T* begin() const { return buffer_; }
     T* end() const { return buffer_ + buffer_size_; }
+}; //Buffer_t
 
-}; //Matrix_buffer_t
-
-
-//============================================================================================================================
 
 template <typename T> class Matrix_t final {
 
 private:
-    Matrix_buffer_t<T> buf_;
-    Matrix_buffer_t<int> row_indices_;
-public:
+    Buffer_t<T> buf_;
     
-    Matrix_t (const size_t r = 0, const size_t c = 0);
+    size_t rows_ = 0;
+    size_t columns_ = 0;
+    std::vector<size_t> row_indices_;
+
+public:
+
     Matrix_t (const size_t r, const size_t c, const std::vector<T> &input);
     Matrix_t (const size_t r, const size_t c, const T &value);
 
-    Matrix_t (const Matrix_t &rhs) = default;
-    Matrix_t &operator= (const Matrix_t &rhs) = default;
+    Matrix_t (const Matrix_t &rhs);
+    Matrix_t &operator= (const Matrix_t &rhs);
     
     Matrix_t (Matrix_t &&rhs) = default;
     Matrix_t &operator= (Matrix_t &&rhs) = default;
     
     ~Matrix_t() = default;
 
-    size_t rows() const { return buf_.rows(); }
-    size_t columns() const { return buf_.columns(); }
+    size_t rows() const { return rows_; }
+    size_t columns() const { return columns_; }
+    size_t buf_size() const { return buf_.size(); }
+    size_t row_index(size_t index) const;
     
     T* operator[] (const size_t index) const;
 
@@ -122,39 +100,67 @@ public:
 
 } //Matrices
     
+//============================================================================================================================
 
 template<typename T>
-Matrices::Matrix_t<T>::Matrix_t (const size_t r, const size_t c) : buf_{r, c}, row_indices_{r, 1} {}
-
-template<typename T>
-Matrices::Matrix_t<T>::Matrix_t (const size_t r, const size_t c, const std::vector<T> &input) : buf_{r, c, input}, row_indices_{r, 1} {
-    for (size_t i = 0; i < r; ++i) {
-        row_indices_.push(i);
+Matrices::Matrix_t<T>::Matrix_t (const size_t r, const size_t c, const std::vector<T> &input) : buf_{r * c}, rows_{r}, columns_{c} {
+    
+    if (input.size() < buf_.size()) {
+        throw std::runtime_error("Not enough data to construct matrix\n");
     }
-
+    
+    while(buf_.used() < buf_.size()) {
+        buf_.push(input[buf_.used()]);
+    }
+    
+    for (size_t i = 0; i < r; ++i) {
+        row_indices_.push_back(i);
+    }
 }
 
 template<typename T>
-Matrices::Matrix_t<T>::Matrix_t (const size_t r, const size_t c, const T &value) : buf_{r, c}, row_indices_{r, 1} {
-    while (buf_.used() < buf_.buffer_size()) {
+Matrices::Matrix_t<T>::Matrix_t (const size_t r, const size_t c, const T &value) : buf_{r * c}, rows_{r}, columns_{c} {
+    while (buf_.used() < buf_.size()) {
         buf_.push(value);
     }
     
     for (size_t i = 0; i < r; ++i) {
-        row_indices_.push(i);
+        row_indices_.push_back(i);
     }
 }
 
 template<typename T>
+Matrices::Matrix_t<T>::Matrix_t(const Matrix_t<T> &rhs) : buf_{rhs.buf_size()}, rows_{rhs.rows()}, columns_{rhs.columns()} {
+    for (size_t i = 0; i < rhs.rows(); ++i) {
+        for (size_t j = 0; j < rhs.columns(); ++j) {
+            buf_.push(rhs[i][j]);
+        }
+        row_indices_.push_back(rhs.row_index(i));
+    }
+}
+
+template<typename T>
+Matrices::Matrix_t<T>& Matrices::Matrix_t<T>::operator= (const Matrix_t &rhs) {
+    Matrix_t temp(rhs);
+    std::swap(*this, temp);
+    return *this;
+}
+
+template<typename T>
+size_t Matrices::Matrix_t<T>::row_index(size_t index) const { 
+    assert (index < rows_);
+    return row_indices_[index]; 
+}
+
+template<typename T>
 T* Matrices::Matrix_t<T>::operator[] (const size_t index) const {  
-    assert(index < rows());
+    assert(index < rows_);
     return buf_.begin() + row_indices_[index] * columns();
 }
 
-
 template<typename T>
 bool Matrices::Matrix_t<T>::swap_rows (const size_t index1, const size_t index2) {
-    if (index1 >= rows() || index2 >= rows() || index1 == index2)
+    if (index1 >= rows_ || index2 >= rows_ || index1 == index2)
         return false;
 
     std::swap (row_indices_[index1], row_indices_[index2]);
@@ -163,10 +169,10 @@ bool Matrices::Matrix_t<T>::swap_rows (const size_t index1, const size_t index2)
 
 template<typename T>
 bool Matrices::Matrix_t<T>::add_rows (const size_t index1, const size_t index2) {
-    if (index1 >= rows() || index2 >= rows() || index1 == index2)
+    if (index1 >= rows_ || index2 >= rows_ || index1 == index2)
         return false;
 
-    for (size_t i = 0; i != columns(); ++i) {
+    for (size_t i = 0; i < columns_; ++i) {
         (*this)[index1][i] += (*this)[index2][i];
     }
     return true;
@@ -174,10 +180,10 @@ bool Matrices::Matrix_t<T>::add_rows (const size_t index1, const size_t index2) 
 
 template<typename T>
 bool Matrices::Matrix_t<T>::subtract_rows (const size_t index1, const size_t index2) {
-    if (index1 >= rows() || index2 >= rows() || index1 == index2)
+    if (index1 >= rows_ || index2 >= rows_ || index1 == index2)
         return false;
 
-    for (size_t i = 0; i != columns(); ++i) {
+    for (size_t i = 0; i < columns_; ++i) {
         (*this)[index1][i] -= (*this)[index2][i];
     }
     return true;
@@ -185,10 +191,10 @@ bool Matrices::Matrix_t<T>::subtract_rows (const size_t index1, const size_t ind
 
 template<typename T>
 bool Matrices::Matrix_t<T>::swap_columns (const size_t index1, const size_t index2) {
-    if (index1 >= columns() || index2 >= columns() || index1 == index2)
+    if (index1 >= columns_ || index2 >= columns_ || index1 == index2)
         return false;
 
-    for (size_t i = 0; i != rows(); ++i) {
+    for (size_t i = 0; i < rows_; ++i) {
         std::swap ((*this)[i][index1], (*this)[i][index2]);
     }
     return true;
@@ -196,10 +202,10 @@ bool Matrices::Matrix_t<T>::swap_columns (const size_t index1, const size_t inde
 
 template<typename T>
 bool Matrices::Matrix_t<T>::add_columns (const size_t index1, const size_t index2) {
-    if (index1 >= columns() || index2 >= columns() || index1 == index2)
+    if (index1 >= columns_ || index2 >= columns_ || index1 == index2)
         return false;
     
-    for (size_t i = 0; i != rows(); ++i) {
+    for (size_t i = 0; i < rows_; ++i) {
         (*this)[i][index1] += (*this)[i][index2];
     }
     return true;
@@ -207,18 +213,18 @@ bool Matrices::Matrix_t<T>::add_columns (const size_t index1, const size_t index
 
 template<typename T>
 bool Matrices::Matrix_t<T>::subtract_columns (const size_t index1, const size_t index2) {
-    if (index1 >= columns() || index2 >= columns() || index1 == index2)
+    if (index1 >= columns_ || index2 >= columns_ || index1 == index2)
         return false;
     
-    for (size_t i = 0; i != rows(); ++i) {
+    for (size_t i = 0; i < rows_; ++i) {
         (*this)[i][index1] -= (*this)[i][index2];
     }
-    return true;
+    return true;    
 }
 
 template<typename T>
 T Matrices::Matrix_t<T>::determinant() const {
-    if (rows() != columns()) {
+    if (rows_ < columns_) {
         throw std::runtime_error("Cannot compute determinant of non square matrix\n");
     }
     
@@ -226,7 +232,7 @@ T Matrices::Matrix_t<T>::determinant() const {
     T det;
     int sign = 1;
     
-    size_t sz = temp.rows();
+    size_t sz = temp.rows_;
     for (size_t i = 0; i < sz - 1; i++) {
 
         std::pair<size_t, size_t> pivot = temp.max_element_of_submatrix(i);
@@ -255,8 +261,8 @@ template<typename T>
 std::pair<size_t, size_t> Matrices::Matrix_t<T>::max_element_of_submatrix (size_t current) {
     std::pair<size_t, size_t> max = std::make_pair(current, current);
 
-    for (size_t i = current; i != rows(); ++i) {
-        for (size_t j = current; j != columns(); ++j) {
+    for (size_t i = current; i < rows_; ++i) {
+        for (size_t j = current; j < columns_; ++j) {
             if ( std::fabs ((*this)[i][j]) > std::fabs ((*this)[max.first][max.second]) ) {
                 max = std::make_pair (i, j);
             }
@@ -269,7 +275,7 @@ std::pair<size_t, size_t> Matrices::Matrix_t<T>::max_element_of_submatrix (size_
 template<typename T>
 bool Matrices::Matrix_t<T>::eliminate_from_under_rows (const size_t index) {
 
-    size_t sz = (*this).rows();
+    size_t sz = (*this).rows_;
     if (index >= sz) {
         return false;
     }
@@ -285,57 +291,6 @@ bool Matrices::Matrix_t<T>::eliminate_from_under_rows (const size_t index) {
     }
 
     return true;
-}
-
-template<typename T>
-Matrices::Matrix_buffer_t<T>::Matrix_buffer_t(size_t r, size_t c) : Buffer_t<T>(r * c), rows_(r), columns_(c) {}
-
-template<typename T>
-Matrices::Matrix_buffer_t<T>::Matrix_buffer_t(size_t r, size_t c, const std::vector<T> &input) : Buffer_t<T>(r * c), rows_(r), columns_(c) {
-    if (input.size() < buffer_size_) {
-        throw std::runtime_error("Not enough data to construct matrix\n");
-    }
-
-    while(used_ < buffer_size_) {
-        construct(buffer_ + used_, input[used_]);
-        used_ += 1;
-    }
-}
-
-template<typename T>
-Matrices::Matrix_buffer_t<T>::Matrix_buffer_t(const Matrix_buffer_t<T> &rhs) : Buffer_t<T>(rhs.buffer_size_), rows_(rhs.rows_), columns_(rhs.columns_) {
-    while (used_ < rhs.used_) {
-        construct(buffer_ + used_, rhs.buffer_[used_]);
-        used_ += 1;
-    }
-}
-
-template<typename T>
-Matrices::Matrix_buffer_t<T>& Matrices::Matrix_buffer_t<T>::operator= (const Matrix_buffer_t &rhs) {
-    Matrix_buffer_t temp(rhs);
-    std::swap(*this, temp);
-    return *this;
-}
-
-template<typename T>
-void Matrices::Matrix_buffer_t<T>::push(const T &t) {
-    T t2(t);
-    push(std::move(t2));
-}
-
-template<typename T>
-void Matrices::Matrix_buffer_t<T>::push(T &&t) {
-    assert(used_ < buffer_size_);
-    static_assert(std::is_nothrow_move_constructible<T>::value);
-    static_assert(std::is_nothrow_move_assignable<T>::value);
-
-    construct(buffer_ + used_, std::move(t));
-    used_ += 1;
-}
-
-template<typename T>
-T& Matrices::Matrix_buffer_t<T>::operator[] (size_t index) const {
-    return buffer_[index];
 }
 
 template<typename T>
@@ -366,3 +321,21 @@ Matrices::Buffer_t<T>::~Buffer_t() {
         ::operator delete(buffer_);
     }
 }
+
+template<typename T>
+void Matrices::Buffer_t<T>::push(const T &t) {
+    T t2(t);
+    push(std::move(t2));
+}
+
+template<typename T>
+void Matrices::Buffer_t<T>::push(T &&t) {
+    assert(used_ < buffer_size_);
+    static_assert(std::is_nothrow_move_constructible<T>::value);
+    static_assert(std::is_nothrow_move_assignable<T>::value);
+
+    construct(buffer_ + used_, std::move(t));
+    used_ += 1;
+}
+
+

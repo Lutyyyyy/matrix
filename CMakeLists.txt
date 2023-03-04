@@ -161,7 +161,7 @@ foreach (TEST ${TESTS})
     
     get_target_property(OUT ${TEST} LINK_LIBRARIES)
     get_target_property(OUT_OPTIONS ${TEST} LINK_OPTIONS)
-    
+
     foreach(OUT_OPTION ${OUT_OPTIONS})
     message (STATUS "     linked option: ${OUT_OPTION}")
     endforeach()

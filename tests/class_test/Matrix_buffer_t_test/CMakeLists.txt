@@ -1,1 +1,0 @@
-add_executable (Matrix_buffer_t_test Matrix_buffer_t_test.cpp)

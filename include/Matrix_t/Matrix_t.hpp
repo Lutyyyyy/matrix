@@ -23,7 +23,6 @@ template <typename Iter> void destroy(Iter first, Iter last) {
         destroy(&*first++);
 }
 
-
 template <typename T> struct Buffer_t {
 
 private:    

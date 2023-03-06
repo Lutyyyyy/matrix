@@ -233,6 +233,8 @@ T Matrices::Matrix_t<T>::determinant() const {
     int sign = 1;
     
     size_t sz = temp.rows_;
+
+    if (sz == 1) return temp[0][0];
     for (size_t i = 0; i < sz - 1; i++) {
 
         std::pair<size_t, size_t> pivot = temp.max_element_of_submatrix(i);

@@ -46,11 +46,17 @@ TEST (determinant_computing_test, test4)
 
 TEST (determinant_computing_test, test5)
 {
+    std::vector<double> vec5 = {1.5};
+    EXPECT_EQ ( equal_eps((Matrix_t<double>{1, 1, vec5}).determinant(), 1.5), true );
+}
+
+TEST (determinant_computing_test, test6)
+{
     Matrix_t<int> zero_mtx {200, 200, 0};
     EXPECT_EQ ( equal_eps (zero_mtx.determinant(), 0), true );
 }
 
-TEST (determinant_computing_test, test6)
+TEST (determinant_computing_test, test7)
 {
     Matrix_t<int> value_mtx {200, 200, 200};
     EXPECT_EQ ( equal_eps (value_mtx.determinant(), 0), true );
